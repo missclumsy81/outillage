@@ -1,0 +1,6 @@
+# Alias Git personnels — chargés par [include] depuis ~/.gitconfig
+[alias]
+	# Commit avec mention de co-auteur, uniquement si l'agent a produit le contenu
+	cc = commit --trailer 'Co-authored-by: Claude <noreply@anthropic.com>'
+	# Une ligne par PR (fil principal), sans lecteur page par page. Ex. : git hist -10
+	hist = !git --no-pager log --first-parent --oneline
