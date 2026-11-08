@@ -79,5 +79,5 @@ fi
 # --- 8. Contrôle -------------------------------------------------------------
 echo
 echo "== Contrôle =="
-GH_PAGER=cat gh pr view "$branche"
+GH_PAGER='cat' gh pr view "$branche"
 git status -sb
