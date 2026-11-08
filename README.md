@@ -24,7 +24,9 @@ Ouvrir un nouveau terminal pour que le `PATH` soit pris en compte.
 
 ## Scripts (`bin/`)
 
-Aucun pour l'instant.
+| Script | Rôle |
+|---|---|
+| `pr-fusion <n> [branche]` | Après confirmation, fusionne la PR `n` par merge commit, resynchronise la branche par défaut, supprime la branche fusionnée, crée la branche suivante si un nom est donné, puis affiche un contrôle. |
 
 ## Contribuer
 
