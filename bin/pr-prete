@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# pr-prete — range les commits fixup!, pousse la branche et ouvre la PR.
+# Usage : pr-prete "<titre de la PR>"
+set -euo pipefail
+
+erreur() {
+  echo "pr-prete : $*" >&2
+  exit 1
+}
+
+confirmer() {
+  local reponse
+  read -r -p "$1 [o/N] " reponse || reponse=""
+  [[ "$reponse" =~ ^[oO]$ ]]
+}
+
+# --- Arguments ---------------------------------------------------------------
+if [[ $# -ne 1 ]]; then
+  echo 'Usage : pr-prete "<titre de la PR>"' >&2
+  exit 2
+fi
+titre="$1"
+
+# --- 1. Préconditions --------------------------------------------------------
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || erreur "pas dans un dépôt Git"
+gh auth status >/dev/null 2>&1 || erreur "gh n'est pas connecté (gh auth login)"
+[[ -z "$(git status --porcelain)" ]] || erreur "arbre de travail non propre (voir git status)"
+
+defaut="$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)"
+branche="$(git branch --show-current)"
+[[ -n "$branche" ]] || erreur "HEAD détachée : placez-vous sur une branche"
+[[ "$branche" != "$defaut" ]] || erreur "vous êtes sur $defaut : créez d'abord une branche"
+
+# --- 2. Titre (Conventional Commits) -----------------------------------------
+re='^(feat|fix|docs|test|refactor|style|perf|build|ci|chore)(\([a-z0-9-]+\))?!?: [^ ].*[^.]$'
+[[ "$titre" =~ $re ]] || erreur "titre non conforme aux Conventional Commits : $titre"
+
+# --- 3. Commits de la branche ------------------------------------------------
+git fetch --quiet origin
+base="$(git merge-base HEAD "origin/$defaut")"   # point de départ : le rebase ne déplace pas la branche
+[[ "$(git rev-list --count "$base..HEAD")" -gt 0 ]] || erreur "aucun commit sur la branche"
+
+afficher_commits() {
+  git --no-pager log --reverse --format='%h %s' --name-only "$base..HEAD"
+}
+
+echo "== Commits de $branche (du plus ancien au plus récent) =="
+afficher_commits
+
+# --- 4. Rangement des fixup! (rebase interactif, plan relu dans l'éditeur) ---
+sujets="$(git log --format='%s' "$base..HEAD")"   # variable : évite grep -q + pipefail
+if grep -qE '^(fixup|squash|amend)! ' <<<"$sujets"; then
+  confirmer "Des commits fixup! existent. Ouvrir le rebase pour les ranger ?" \
+    || erreur "abandon, rien n'a été modifié"
+  avant="$(git rev-parse HEAD)"
+  git rebase -i --autosquash "$base"
+  if ! git diff --quiet "$avant" HEAD; then
+    erreur "le contenu a changé pendant le rebase ; vérifiez, et au besoin : git reset --hard $avant"
+  fi
+  echo "== Commits après rangement (contenu identique) =="
+  afficher_commits
+fi
+
+# --- 5. Confirmation ---------------------------------------------------------
+confirmer "Pousser $branche et ouvrir la PR « $titre » ?" || erreur "abandon, rien n'a été poussé"
+
+# --- 6. Push (le bail protège ce qui a été récupéré au fetch) ----------------
+git push -u --force-with-lease origin "$branche"
+
+# --- 7. PR -------------------------------------------------------------------
+etat="$(gh pr view "$branche" --json state --jq .state 2>/dev/null || true)"
+if [[ "$etat" == "OPEN" ]]; then
+  echo "Une PR est déjà ouverte pour $branche : elle est mise à jour par le push."
+else
+  corps="$(git --no-pager log --reverse --format='- %s' "$base..HEAD")"
+  gh pr create --base "$defaut" --head "$branche" --title "$titre" --body "$corps"
+fi
+
+# --- 8. Contrôle -------------------------------------------------------------
+echo
+echo "== Contrôle =="
+GH_PAGER=cat gh pr view "$branche"
+git status -sb

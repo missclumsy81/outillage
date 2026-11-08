@@ -27,6 +27,7 @@ Ouvrir un nouveau terminal pour que le `PATH` soit pris en compte.
 | Script | Rôle |
 |---|---|
 | `pr-fusion <n> [branche]` | Après confirmation, fusionne la PR `n` par merge commit, resynchronise la branche par défaut, supprime la branche fusionnée, crée la branche suivante si un nom est donné, puis affiche un contrôle. |
+| `pr-prete "<titre>"` | Vérifie le titre (Conventional Commits), affiche les commits de la branche avec leurs fichiers, ouvre le rebase interactif s'il y a des `fixup!` (contenu vérifié identique ensuite), pousse après confirmation et ouvre la PR. |
 
 ## Contribuer
 
