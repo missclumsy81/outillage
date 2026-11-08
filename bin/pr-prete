@@ -79,5 +79,6 @@ fi
 # --- 8. Contrôle -------------------------------------------------------------
 echo
 echo "== Contrôle =="
-GH_PAGER='cat' gh pr view "$branche"
+GH_PAGER='cat' gh pr view "$branche" --json number,title,state,url,headRefName,baseRefName \
+  --jq '"#\(.number) \(.state) \(.headRefName) → \(.baseRefName)\n\(.title)\n\(.url)"'
 git status -sb
